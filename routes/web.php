@@ -17,3 +17,8 @@ Route::get('/', function () {
     echo "Hello World";
     echo "Hello World";
 });
+
+// Load MYOB module routes
+if (file_exists(base_path('Modules/myob/routes/web.php'))) {
+    require base_path('Modules/myob/routes/web.php');
+}

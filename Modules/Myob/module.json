@@ -1,0 +1,11 @@
+{
+    "name": "Myob",
+    "alias": "myob",
+    "description": "",
+    "keywords": [],
+    "priority": 0,
+    "providers": [
+        "Modules\\Myob\\App\\Providers\\MyobServiceProvider"
+    ],
+    "files": []
+}

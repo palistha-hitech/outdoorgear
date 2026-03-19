@@ -16,7 +16,7 @@ use Modules\Shopify\App\Http\Controllers\ViewController\OrderViewController;
 |
 */
 
-// require __DIR__ . '/myob.php';
+
 Route::group([], function () {
     Route::resource('shopify', ShopifyController::class)->names('shopify');
     Route::get('order-details', [OrderViewController::class, 'index'])->name('order-details');

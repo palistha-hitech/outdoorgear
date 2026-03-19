@@ -448,16 +448,23 @@ class SourceProductController extends Controller
                 if ($product->shopifyPendingProcess == 4) {
                     // dd('update here');
                     if ($product->status == 1 && $product->shopifyProductId != null) {
-
-                        $change_query = $this->changeStatusMutation($product->shopifyProductId, 'ACTIVE');
-                        dump('Status Mutation : ', $change_query);
-                        $response_status_update = $this->sendShopifyQueryRequestV2('POST', $change_query, $this->live);
-                        if ($debug == 'statusResponse') {
-                            dd($response_status_update);
+                        // Only activate if not wholesale
+                        if ($product->productType != 'wholesale') {
+                            $change_query = $this->changeStatusMutation($product->shopifyProductId, 'ACTIVE');
+                            dump('Status Mutation : ', $change_query);
+                            $response_status_update = $this->sendShopifyQueryRequestV2('POST', $change_query, $this->live);
+                            if ($debug == 'statusResponse') {
+                                dd($response_status_update);
+                            }
                         }
-
                     }
                     $updateData['shopifyPendingProcess'] = 0;
+                }
+
+                // Apply wholesale status (always keep wholesale products as DRAFT)
+                if ($product->productType == 'wholesale' && $product->shopifyProductId != null) {
+                    $change_query = $this->changeStatusMutation($product->shopifyProductId, 'DRAFT');
+                    $this->sendShopifyQueryRequestV2('POST', $change_query, $this->live);
                 }
 
                 $product->update($updateData);

@@ -1,0 +1,31 @@
+{
+    "name": "nwidart/myob",
+    "description": "",
+    "authors": [
+        {
+            "name": "Nicolas Widart",
+            "email": "n.widart@gmail.com"
+        }
+    ],
+    "extra": {
+        "laravel": {
+            "providers": [],
+            "aliases": {
+
+            }
+        }
+    },
+    "autoload": {
+        "psr-4": {
+            "Modules\\Myob\\": "",
+            "Modules\\Myob\\App\\": "app/",
+            "Modules\\Myob\\Database\\Factories\\": "database/factories/",
+            "Modules\\Myob\\Database\\Seeders\\": "database/seeders/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Modules\\Myob\\Tests\\": "tests/"
+        }
+    }
+}

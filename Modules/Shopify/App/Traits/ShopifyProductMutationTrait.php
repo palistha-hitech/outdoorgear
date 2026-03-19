@@ -637,7 +637,7 @@ trait ShopifyProductMutationTrait
         $mutation  = 'mutation {';
         $mutation .= 'productUpdate(input:{';
         $mutation .= 'id:"' . $shopifyProductId . '",';
-        $mutation .= 'status:' . $status . '';
+        $mutation .= 'status:' . $status . ',';
         $mutation .= '}) {
                 product {
                     id
