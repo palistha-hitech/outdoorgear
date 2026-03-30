@@ -1,9 +1,7 @@
 <?php
-
 namespace Modules\Shopify\App\Http\Controllers\ReadShopify;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
@@ -31,11 +29,12 @@ class ShopifyProductsController extends Controller
     {
         // $debug = 0;
         $productId = $request->productId;
-        if ($productId) {
-            $query = $this->getSingleproductsQuery($productId);
-        } else {
-            $query = $this->getMatrixProductQueryByLastmodified($this->clientCode, $this->live);
-        }
+        // if ($productId) {
+        //     $query = $this->getSingleproductsQuery($productId);
+        // } else {
+        $query = $this->getMatrixProductQueryByLastmodified($this->clientCode, $this->live);
+
+        // }
 
         $debug = $request->debug ?? 0;
         // if (isset($request->debug)) {
@@ -49,32 +48,32 @@ class ShopifyProductsController extends Controller
         if ($debug == 2) {
             dd($res);
         }
-        if (!empty($res->data->products->edges)) {
+        if (! empty($res->data->products->edges)) {
             DB::beginTransaction();
             try {
                 $lmd = '';
                 foreach ($res->data->products->edges as $productEdge) {
                     $productNode = $productEdge->node;
-                    $cursor = $productEdge->cursor;
+                    $cursor      = $productEdge->cursor;
 
                     $lmd = $productNode->updatedAt;
                     Log::info('products: ' . json_encode($productNode));
                     $shopifyproductStringId = $productNode->id;
-                    $shopifyproductId = last(explode('/', $productNode->id));
-                    $tags = implode(',', $productNode->tags);
-                    $productType = $productNode->hasOnlyDefaultVariant ? 'simple' : 'matrix';
+                    $shopifyproductId       = last(explode('/', $productNode->id));
+                    $tags                   = implode(',', $productNode->tags);
+                    $productType            = $productNode->hasOnlyDefaultVariant ? 'simple' : 'matrix';
                     if ($debug == 3) {
                         dd([
                             'shopify_products_string_id' => $shopifyproductStringId,
-                            'title' => $productNode->title,
-                            'totalInventory' => $productNode->totalInventory,
-                            'totalVariants' => $productNode->totalVariants,
-                            'status' => @$productNode->status,
-                            'vendor' => @$productNode->vendor,
-                            'productType' => @$productType,
-                            'description' => @$productNode->description,
-                            'tags' =>  $tags,
-                            'handle' => @$productNode->handle,
+                            'title'                      => $productNode->title,
+                            'totalInventory'             => $productNode->totalInventory,
+                            'totalVariants'              => $productNode->totalVariants,
+                            'status'                     => @$productNode->status,
+                            'vendor'                     => @$productNode->vendor,
+                            'productType'                => @$productType,
+                            'description'                => @$productNode->description,
+                            'tags'                       => $tags,
+                            'handle'                     => @$productNode->handle,
 
                         ]);
                     }
@@ -82,17 +81,17 @@ class ShopifyProductsController extends Controller
                         ['shopify_products_id' => strval($shopifyproductId)],
                         [
                             'shopify_products_string_id' => $shopifyproductStringId,
-                            'title' => $productNode->title,
-                            'totalInventory' => $productNode->totalInventory,
-                            'totalVariants' => $productNode->totalVariants,
-                            'status' => @$productNode->status,
-                            'vendor' => @$productNode->vendor,
-                            'productType' => @$productType,
-                            'description' => @$productNode->description,
-                            'tags' =>  $tags,
-                            'handle' => @$productNode->handle,
-                            'Shopify_added_date' => $productNode->createdAt,
-                            'Shopify_updated_date' => $productNode->updatedAt
+                            'title'                      => $productNode->title,
+                            'totalInventory'             => $productNode->totalInventory,
+                            'totalVariants'              => $productNode->totalVariants,
+                            'status'                     => @$productNode->status,
+                            'vendor'                     => @$productNode->vendor,
+                            'productType'                => @$productType,
+                            'description'                => @$productNode->description,
+                            'tags'                       => $tags,
+                            'handle'                     => @$productNode->handle,
+                            'Shopify_added_date'         => $productNode->createdAt,
+                            'Shopify_updated_date'       => $productNode->updatedAt,
                         ]
                     );
                     foreach ($productNode->images->edges as $imageEdge) {
@@ -101,8 +100,8 @@ class ShopifyProductsController extends Controller
                             ['product_string_id' => $shopifyproductStringId],
                             [
                                 'shopifyMediaId' => $imageEdge->node->id ?? null,
-                                'url' => $imageUrl,
-                                'productId' => $sourceproduct->id,
+                                'url'            => $imageUrl,
+                                'productId'      => $sourceproduct->id,
                             ]
                         );
                     }
@@ -127,18 +126,18 @@ class ShopifyProductsController extends Controller
                     //     Log::info("Extracted cursor: {$lastCursor}");
                     // }
                 }
-                if (!empty($lmd)) {
+                if (! empty($lmd)) {
                     ShopifyCursor::updateOrcreate(
                         [
                             'clientCode' => $this->clientCode,
                             'cursorName' => 'matrixProductV2',
-                            'isLive' => $this->live,
+                            'isLive'     => $this->live,
                         ],
                         [
                             'clientCode' => $this->clientCode,
                             'cursorName' => 'matrixProductV2',
-                            'cursor' => $lmd,
-                            'isLive' => $this->live,
+                            'cursor'     => $lmd,
+                            'isLive'     => $this->live,
                         ]
                     );
                 }
@@ -157,13 +156,13 @@ class ShopifyProductsController extends Controller
 
     public function getVariantsProducts(Request $request)
     {
-        $debug = 0;
+        $debug     = 0;
         $productId = $request->productId;
-        if ($productId) {
-            $query = $this->getSingleproductsQuery($productId);
-        } else {
-            $query = $this->getVariationProductQuery($this->clientCode, $this->live);
-        }
+        // if ($productId) {
+        //     $query = $this->getSingleproductsQuery($productId);
+        // } else {
+        $query = $this->getVariationProductQuery($this->clientCode, $this->live);
+        // }
         if (isset($request->debug)) {
             $debug = $request->debug;
         }
@@ -171,10 +170,11 @@ class ShopifyProductsController extends Controller
             dd($query);
         }
         $res = $this->sendShopifyQueryRequestV2('POST', $query, $this->live);
+
         if ($debug == 2) {
             dd($res);
         }
-        if (!empty($res->data->productVariants->edges)) {
+        if (! empty($res->data->productVariants->edges)) {
             DB::beginTransaction();
             try {
                 $lmd = '';
@@ -185,43 +185,44 @@ class ShopifyProductsController extends Controller
 
                     Log::info('products: ' . json_encode($productNode));
                     $shopifyproductStringId = $productNode->id;
-                    $shopifyproductId = last(explode('/', $productNode->id));
-
+                    $shopifyproductId       = last(explode('/', $productNode->id));
+                    $weight                 = $productNode->inventoryItem->measurement->weight->value ?? null;
+                    $weightUnit             = $productNode->inventoryItem->measurement->weight->unit ?? null;
                     if ($debug == 3) {
                         dd([
                             'shopify_products_string_id' => $shopifyproductStringId,
-                            'title' => $productNode->title,
-                            'price' => $productNode->price,
-                            'totalInventory' => $productNode->inventoryQuantity,
-                            'displayName' => $productNode->displayName,
-                            'weight' => $productNode->weight,
-                            'weightUnit' => $productNode->weightUnit,
-                            'sku' => $productNode->sku,
-                            'barcode' => $productNode->barcode,
-                            'shiopifyVariantId' => $shopifyproductStringId,
-                            'shopify_products_id' => $productNode->product->id,
-                            'status' => @$productNode->product->status,
-                            'color' => @$productNode->selectedOptions[0]->value,
-                            'size' => @$productNode->selectedOptions[1]->value,
+                            'title'                      => $productNode->title,
+                            'price'                      => $productNode->price,
+                            'totalInventory'             => $productNode->inventoryQuantity,
+                            'displayName'                => $productNode->displayName,
+                            'weight'                     => $weight,
+                            'weightUnit'                 => $weightUnit,
+                            'sku'                        => $productNode->sku,
+                            'barcode'                    => $productNode->barcode,
+                            'shiopifyVariantId'          => $shopifyproductStringId,
+                            'shopify_products_id'        => $productNode->product->id,
+                            'status'                     => @$productNode->product->status,
+                            'color'                      => @$productNode->selectedOptions[0]->value,
+                            'size'                       => @$productNode->selectedOptions[1]->value,
                         ]);
                     }
                     $sourceproduct = ShopifyVariantsProduct::updateOrCreate(
-                        ['shopify_products_string_id' => $shopifyproductStringId,],
+                        ['shopify_products_string_id' => $shopifyproductStringId],
                         [
                             'shopify_products_string_id' => $shopifyproductStringId,
-                            'title' => $productNode->title,
-                            'price' => $productNode->price,
-                            'totalInventory' => $productNode->inventoryQuantity,
-                            'displayName' => $productNode->displayName,
-                            'weight' => $productNode->weight,
-                            'weightUnit' => $productNode->weightUnit,
-                            'sku' => $productNode->sku,
-                            'barcode' => $productNode->barcode,
-                            'shiopifyVariantId' => $shopifyproductStringId,
-                            'shopify_products_id' => $productNode->product->id,
-                            'status' => @$productNode->product->status,
-                            'color' => @$productNode->selectedOptions[0]->value,
-                            'size' => @$productNode->selectedOptions[1]->value,
+                            'title'                      => $productNode->title,
+                            'price'                      => $productNode->price,
+                            'totalInventory'             => $productNode->inventoryQuantity,
+                            'displayName'                => $productNode->displayName,
+                            // 'weight'                     => $weight,
+                            // 'weightUnit'                 => $weightUnit,
+                            'sku'                        => $productNode->sku,
+                            'barcode'                    => $productNode->barcode,
+                            'shiopifyVariantId'          => $shopifyproductStringId,
+                            'shopify_products_id'        => $productNode->product->id,
+                            'status'                     => @$productNode->product->status,
+                            'color'                      => @$productNode->selectedOptions[0]->value,
+                            'size'                       => @$productNode->selectedOptions[1]->value,
                         ]
                     );
 
@@ -233,13 +234,13 @@ class ShopifyProductsController extends Controller
                             [
                                 'clientCode' => $this->clientCode,
                                 'cursorName' => 'variationProduct',
-                                'isLive' => $this->live,
+                                'isLive'     => $this->live,
                             ],
                             [
                                 'clientCode' => $this->clientCode,
                                 'cursorName' => 'variationProduct',
-                                'cursor' => $cursor,
-                                'isLive' => $this->live,
+                                'cursor'     => $cursor,
+                                'isLive'     => $this->live,
                             ]
                         );
                         Log::info("Extracted cursor: {$lastCursor}");
@@ -260,19 +261,19 @@ class ShopifyProductsController extends Controller
 
     public function handleProductwebHooks(Request $request)
     {
-        $data = $request->all();
+        $data           = $request->all();
         $productDetails = $data;
-        $product = ShopifyProduct::updateOrCreate(
+        $product        = ShopifyProduct::updateOrCreate(
             ['shopify_products_string_id' => $data['admin_graphql_api_id']],
             [
-                'title' => $data['title'],
-                'status' => $data['status'],
-                'vendor' => $data['vendor'],
-                'description' => $data['body_html'],
-                'tags' => $data['tags'],
-                'handle' => $data['handle'],
-                'Shopify_added_date' => $data['created_at'] ?? now()->toDateTimeString(),
-                'Shopify_updated_date' => $data['updated_at'] ?? now()->toDateTimeString()
+                'title'                => $data['title'],
+                'status'               => $data['status'],
+                'vendor'               => $data['vendor'],
+                'description'          => $data['body_html'],
+                'tags'                 => $data['tags'],
+                'handle'               => $data['handle'],
+                'Shopify_added_date'   => $data['created_at'] ?? now()->toDateTimeString(),
+                'Shopify_updated_date' => $data['updated_at'] ?? now()->toDateTimeString(),
             ]
         );
 
@@ -281,18 +282,18 @@ class ShopifyProductsController extends Controller
                 ShopifyVariantsProduct::updateOrCreate(
                     ['shiopifyVariantId' => $variant['admin_graphql_api_id']],
                     [
-                        'shiopifyVariantId' => $variant['admin_graphql_api_id'],
+                        'shiopifyVariantId'   => $variant['admin_graphql_api_id'],
                         'shopify_products_id' => $product['id'],
-                        'title' => $variant['title'],
-                        'price' => $variant['price'],
-                        'inventory_quantity' => $variant['inventory_quantity'] ?? 0,
-                        'sku' => $variant['sku'],
-                        'barcode' => $variant['barcode'],
-                        'status' => $variant['status'] ?? 'active',
-                        'color' => $variant['option1'] ?? null,
-                        'size' => $variant['option2'] ?? null,
-                        'weight' => $variant['grams'],
-                        'weight_unit' => $variant['weight_unit']
+                        'title'               => $variant['title'],
+                        'price'               => $variant['price'],
+                        'inventory_quantity'  => $variant['inventory_quantity'] ?? 0,
+                        'sku'                 => $variant['sku'],
+                        'barcode'             => $variant['barcode'],
+                        'status'              => $variant['status'] ?? 'active',
+                        'color'               => $variant['option1'] ?? null,
+                        'size'                => $variant['option2'] ?? null,
+                        'weight'              => $variant['grams'],
+                        'weight_unit'         => $variant['weight_unit'],
                     ]
                 );
             }

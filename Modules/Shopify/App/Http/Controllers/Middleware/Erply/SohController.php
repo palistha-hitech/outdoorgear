@@ -1,18 +1,13 @@
 <?php
-
 namespace Modules\Shopify\App\Http\Controllers\Middleware\Erply;
 
 use App\Http\Controllers\Controller;
-use App\Models\Products\Product;
 use Exception;
-use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Http\Response;
 use Modules\Shopify\App\Models\ErplyModel\Product as ErplyModelProduct;
+use Modules\Shopify\App\Models\Source\SourceProduct;
 use Modules\Shopify\App\Services\ErplyService\ErplyProductService;
 use Modules\Shopify\App\Services\SourceService\SourceProductGetService;
-use Modules\Shopify\App\Models\Source\SourceProduct;
-use Modules\Shopify\App\Models\Source\SourceLocation;
 
 class SohController extends Controller
 {
@@ -21,14 +16,14 @@ class SohController extends Controller
     protected $sourceProductService;
     public function __construct(ErplyProductService $productService)
     {
-        $this->productService = $productService;
+        $this->productService       = $productService;
         $this->sourceProductService = new SourceProductGetService();
     }
 
     public function indexBackup(Request $request)
     {
         try {
-            $code = $request->code ?? '';
+            $code  = $request->code ?? '';
             $limit = $request->limit ?? 50;
             # get product details from erplay
             $products = $this->productService->getProducts(['roadhouseSohStatus' => 1], $limit, $code);
@@ -41,7 +36,7 @@ class SohController extends Controller
                 }
                 #get images details from the erply
                 echo "Product ID : " . $product->productID;
-                $Variants =   $this->productService->getAllVariants($product->productID);
+                $Variants = $this->productService->getAllVariants($product->productID);
                 echo "Variants Count : " . count($Variants);
                 #get source product details from module
                 $sourceProduct = $this->sourceProductService->getSourceProducts(['stockId' => $product->productID]);
@@ -66,14 +61,14 @@ class SohController extends Controller
                                         $sourceVarientId = $sourceVarient->id;
                                     } else {
                                         ErplyModelProduct::where('productID', $product->productID)->update([
-                                            'roadhouseStatus' => 1
+                                            'roadhouseStatus' => 1,
                                         ]);
                                         $this->sourceProductService->updateSourceProduct(['id' => $sourceProduct->id], ['sohPendingProcess' => 0]);
                                         continue;
                                     }
 
                                     $locationId = $this->sourceProductService->getLocationsById($variationSoh->erplyWarehouseID);
-                                    $result =  $this->sourceProductService->insertSoh(
+                                    $result     = $this->sourceProductService->insertSoh(
                                         $sourceProduct->id,
                                         $sourceVarientId,
                                         $locationId->id,
@@ -97,35 +92,34 @@ class SohController extends Controller
                                 }
                             } else {
                                 echo
-                                "soh noty found";
+                                    "soh noty found";
                             }
                         }
                     }
                     if ($flag == 1) {
                         $sourceProductUpadte = [
                             'sohPendingProcess' => 1,
-                            'lastSyncDate' => date('Y-m-d H:i:s')
+                            'lastSyncDate'      => date('Y-m-d H:i:s'),
                         ];
                     } else {
                         $sourceProductUpadte = [
                             'sohPendingProcess' => 0,
-                            'lastSyncDate' => date('Y-m-d H:i:s')
+                            'lastSyncDate'      => date('Y-m-d H:i:s'),
                         ];
                     }
 
                     $this->sourceProductService->updateSourceProduct(['id' => $sourceProduct->id], $sourceProductUpadte);
                     $updateData = [
-                        'roadhouseSohStatus' => 0
+                        'roadhouseSohStatus' => 0,
 
                     ];
                 } else {
                     echo "Product Not Found in Source Module or soh not found";
                     $updateData = [
-                        'roadhouseSohStatus' => 3
+                        'roadhouseSohStatus' => 3,
 
                     ];
                 }
-
 
                 $this->productService->updateProducts($product->productID, $updateData);
 
@@ -146,29 +140,28 @@ class SohController extends Controller
         try {
             // dd($request->all());
             // die('temporary disabled');
-           $code = $request->code ?? '';
+            $code = $request->code ?? '';
 
             $limit = $request->limit ?? 50;
-            
+
             # Get default location for SOH insertion
             // $defaultLocation = SourceLocation::first();
             // if (!$defaultLocation) {
             //     echo "No locations found in source_locations table. Please setup locations first.";
             //     return;
             // }
-            
-       $whereCondition = ['outdoorGearSohStatus' => 1];
-            $products = SourceProduct::with(['variants'])
-                // ->where('outdoorGearSohStatus', 1)
+
+            $whereCondition = ['outdoorGearSohStatus' => 1];
+            $products       = SourceProduct::with(['variants'])
+            // ->where('outdoorGearSohStatus', 1)
                 ->when($code != '', function ($query) use ($code) {
                     $query->where('code', $code);
                 })->when($code == '', function ($query) use ($whereCondition) {
-                    $query->where($whereCondition);
-                })
-                // ->orderBy('lastModified', 'desc')
-                ->limit($limit)
-                ->get();
-dump($products);
+                $query->where($whereCondition);
+            })
+            // ->orderBy('lastModified', 'desc')
+                ->orderBy('updated_at', 'desc')->limit($limit)->get();
+
             foreach ($products as $product) {
                 // Check for duplicates (though this shouldn't happen with Source products)
                 $count = SourceProduct::where('code', $product->code)->count();
@@ -177,10 +170,10 @@ dump($products);
                     $product->update(['outdoorGearSohStatus' => 4]);
                     continue; // Skip to next product
                 }
-                
+
                 echo "Product ID : " . $product->id . "<br><br>";
                 $variants = $product->variants; // Use the relationship
-                // dd($variants);
+                                                // dd($variants);
                 echo "Variants Count : " . count($variants) . "<br>";
 
                 if ($product->isMatrix == 1) {
@@ -188,18 +181,25 @@ dump($products);
                     if ($variants->isNotEmpty()) {
                         $flag = 0;
                         foreach ($variants as $variant) {
-                            // dd($variant);
+                            // Decode the JSON string into an associative array
+                            $locations = json_decode($variant->location, true);
+
+                            if (! empty($locations) && isset($locations[0]['uid'])) {
+                                $locationUid = $locations[0]['uid'];
+                                dd($locationUid);
+                                echo "Location UID: " . $locationUid;
+                            }
                             echo "<br><br>Variant SKU = " . $variant->sku . "<br>";
-                            
+
                             # Get quantityOnHand from variant directly
                             $quantityOnHand = $variant->quantityOnHand;
-                           
+
                             // if ($quantityOnHand !== null && $quantityOnHand > 0) {
-                            if ($quantityOnHand !== null){
+                            if ($quantityOnHand !== null) {
                                 $result = $this->sourceProductService->insertSoh(
                                     $product->id,
                                     $variant->id,
-                                  null,
+                                    null,
                                     $quantityOnHand // Use quantityOnHand from source_variants
                                 );
 
@@ -209,6 +209,7 @@ dump($products);
                                     echo "Message : Soh Inserted Successfully";
                                     echo "<br>";
                                     $flag = 1;
+                                    // dd($flag);s
                                 } else {
                                     echo "Message : Soh Not Inserted";
                                     echo "<br>";
@@ -217,42 +218,42 @@ dump($products);
                                 echo "No quantityOnHand found for this variant or quantity is 0!!!";
                             }
                         }
-                        
+
                         if ($flag == 1) {
                             $sourceProductUpdate = [
                                 'sohPendingProcess' => 1,
-                                'lastSyncDate' => date('Y-m-d H:i:s')
+                                'lastSyncDate'      => date('Y-m-d H:i:s'),
                             ];
                             $updateData = [
-                                'outdoorGearSohStatus' => 0
+                                'outdoorGearSohStatus' => 0,
                             ];
                         } else {
                             $sourceProductUpdate = [
                                 'sohPendingProcess' => 0,
-                                'lastSyncDate' => date('Y-m-d H:i:s')
+                                'lastSyncDate'      => date('Y-m-d H:i:s'),
                             ];
                             $updateData = [
-                                'outdoorGearSohStatus' => 3
+                                'outdoorGearSohStatus' => 3,
                             ];
                         }
-                       
+
                         $this->sourceProductService->updateSourceProduct(['id' => $product->id], $sourceProductUpdate);
                     } else {
                         echo "No variants found for product !!!";
                         $updateData = [
-                            'outdoorGearSohStatus' => 3
+                            'outdoorGearSohStatus' => 3,
                         ];
                     }
                 } else {
                     // Simple product - use product_id directly, variant_id = 0
                     # Get quantityOnHand from product directly
                     $quantityOnHand = $product->quantityOnHand;
-                    
+
                     if ($quantityOnHand !== null && $quantityOnHand > 0) {
                         $result = $this->sourceProductService->insertSoh(
                             $product->id,
                             0, // variant_id = 0 for simple products
-                           null,
+                            null,
                             $quantityOnHand // Use quantityOnHand from source_products
                         );
 
@@ -271,26 +272,26 @@ dump($products);
                         echo "No quantityOnHand found for this product or quantity is 0!!!";
                         $flag = 0;
                     }
-                    
+
                     if ($flag == 1) {
                         $update_soh_data = [
-                            'sohPendingProcess' => 1
+                            'sohPendingProcess' => 1,
                         ];
                         $updateData = [
-                            'outdoorGearSohStatus' => 0
+                            'outdoorGearSohStatus' => 0,
                         ];
                     } else {
                         $update_soh_data = [
-                            'sohPendingProcess' => 0
+                            'sohPendingProcess' => 0,
                         ];
                         $updateData = [
-                            'outdoorGearSohStatus' => 3
+                            'outdoorGearSohStatus' => 3,
                         ];
                     }
                     $this->sourceProductService->updateSourceProduct(['id' => $product->id], $update_soh_data);
                 }
 
-                if (isset($updateData) && !empty($updateData)) {
+                if (isset($updateData) && ! empty($updateData)) {
                     $product->update($updateData);
                 }
 

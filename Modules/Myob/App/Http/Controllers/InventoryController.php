@@ -15,10 +15,17 @@ class InventoryController extends Controller
         $this->service = $inventoryService;
     }
 
+    
     public function getMatrixProducts(Request $req)
     {
         // dd(" hello ");
         return $this->service->getMatrixProducts($req);
+    }
+    
+    public function handleAccessCode(Request $req)
+    {
+        // dd(" hello ");
+        return $this->service->handleAccessCode($req);
     }
 
 }

@@ -53,7 +53,7 @@ Route::get('push-product-soh', [SourceSohController::class, 'index']);
 Route::get('v1/push-variants', [SourceProductController::class, 'pushVariantsV1']);
 // // Route::get('update-archived-variants', [SourceProductController::class, 'updateArchivedVariants']);
 // Route::get('/send/email', [EmailController::class, 'sendEmail']);
-// Route::get('/send-alert/failed-soh', [EmailController::class, 'getFailedSOH']);
+Route::get('/send-alert/failed-soh', [EmailController::class, 'getFailedSOH']);
 
 // # move products details from erplay to module
 
@@ -80,11 +80,11 @@ Route::get('get-soh', [SohController::class, 'index']);
 
 // #Shopify Products
 
-// Route::get('getShopifyProducts', [ShopifyProductsController::class, 'getProducts']);
-// Route::get('getVariantsProducts', [ShopifyProductsController::class, 'getVariantsProducts']);
+Route::get('getShopifyProducts', [ShopifyProductsController::class, 'getProducts']);
+Route::get('getVariantsProducts', [ShopifyProductsController::class, 'getVariantsProducts']);
 
 // Route::get('delete-laravel-logs', [OrderViewController::class, 'deleteLaravelLogs']);
-// #Route::post('webhook-product', [ShopifyProductsController::class, 'handleProductwebHooks']);
+Route::post('webhook-product', [ShopifyProductsController::class, 'handleProductwebHooks']);
 // Route::any('/webhooks-customers', function (Request $request) {
 //     // Log raw dataa
 //     Log::info('Raw Webhook Data:', ['payload' => $request->getContent()]);
@@ -116,3 +116,5 @@ Route::get('get-soh', [SohController::class, 'index']);
 //     Route::get('/variation-image-append', [WriteShopifyV2SourceImageController::class, 'addvariantsToMedia']);
 //     Route::get('/soh', [WriteShopifyV2SourceSohController::class, 'index']);
 // });
+
+

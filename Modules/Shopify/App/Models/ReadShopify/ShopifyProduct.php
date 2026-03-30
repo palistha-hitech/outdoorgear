@@ -1,10 +1,8 @@
 <?php
-
 namespace Modules\Shopify\App\Models\ReadShopify;
 
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Modules\Shopify\Database\factories\ReadShopify\ShopifyProductFactory;
+use Illuminate\Database\Eloquent\Model;
 
 class ShopifyProduct extends Model
 {
@@ -13,6 +11,8 @@ class ShopifyProduct extends Model
     /**
      * The attributes that are mass assignable.
      */
+    protected $guarded = [];
+    protected $table   = 'shopify_products';
     protected $fillable = [
         'shopify_products_string_id', 'shopify_products_id',
         'title', 'totalInventory', 'totalVariants', 'status', 'vendor', 'productType',

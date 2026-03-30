@@ -1,5 +1,4 @@
 <?php
-
 namespace Modules\Shopify\App\Traits;
 
 use GuzzleHttp\Client;
@@ -7,12 +6,13 @@ use Modules\Shopify\App\Models\ShopifyCursor;
 
 trait ShopifyTrait
 {
-    public function __construct() {}
+    public function __construct()
+    {}
 
     public function getShopifyCredentails($isLive = 0)
     {
         if ($isLive == 1) {
-          
+
             return ['url' => config('shopify.live.url'), 'secret' => config('shopify.live.secret')];
         }
 
@@ -29,7 +29,7 @@ trait ShopifyTrait
     {
         $headers = [
             'X-Shopify-Access-Token' => $secret,
-            'Content-Type' => 'application/json',
+            'Content-Type'           => 'application/json',
         ];
 
         $client = new Client([
@@ -51,10 +51,10 @@ trait ShopifyTrait
     {
 // dd($query);
         $shopifyDetails = $this->getShopifyCredentails($isLive);
-   
-    $headers = [
+
+        $headers = [
             'X-Shopify-Access-Token' => $shopifyDetails['secret'],
-            'Content-Type' => 'application/json',
+            'Content-Type'           => 'application/json',
         ];
 
         $client = new Client([
@@ -66,10 +66,9 @@ trait ShopifyTrait
                 'query' => $query,
             ],
         ]);
-      
 
         $products = json_decode($request->getBody()->getContents());
-    //  dd($products);
+        //  dd($products);
         return $products;
     }
 
@@ -78,8 +77,8 @@ trait ShopifyTrait
         $cursor = ShopifyCursor::where('clientCode', $clientCode)->where('isLive', $isLive)->where('cursorName', $name)->first();
         if ($cursor) {
             return [
-                'cursor' => $cursor->cursor,
-                'cursorName' => $cursor->cursorName
+                'cursor'     => $cursor->cursor,
+                'cursorName' => $cursor->cursorName,
             ];
         }
         return null;
@@ -88,11 +87,11 @@ trait ShopifyTrait
     public function getMatrixProductQuery($clientCode)
     {
         $cursor = $this->getCursor($clientCode, 'matrixProduct', 1);
-        $magic = 'products(first:3,sortKey:ID) {';
-        if ($cursor != '') {
-            # $cursor = "updated_at:>='$cursor'";
-            $magic = 'products(first:5,sortKey:ID, after:"' . $cursor . '") {';
-        }
+        $magic  = 'products(first:3,sortKey:ID) {';
+        // if ($cursor != '') {
+        //     # $cursor = "updated_at:>='$cursor'";
+        //     $magic = 'products(first:5,sortKey:ID, after:"' . $cursor . '") {';
+        // }
         $query = <<<GQL
             query {
                 $magic
@@ -141,11 +140,11 @@ trait ShopifyTrait
     public function getMatrixProductQueryByLastmodified($clientCode)
     {
         $cursor = $this->getCursor($clientCode, 'matrixProductV2', 1);
-        $magic = 'products(first:3,sortKey:UPDATED_AT) {';
-        if ($cursor != '') {
-            $cursor = "updated_at:>='$cursor'";
-            $magic = "products(first:10, query:\"$cursor\", sortKey:UPDATED_AT) {";
-        }
+        $magic  = 'products(first:10,sortKey:UPDATED_AT,query:"status:draft") {';
+        // if ($cursor != '') {
+        //     $cursor = "updated_at:>='$cursor'";
+        //     $magic  = "products(first:10, query:\"$cursor\", sortKey:UPDATED_AT) {";
+        // }
         $query = <<<GQL
             query {
                 $magic
@@ -194,10 +193,11 @@ trait ShopifyTrait
     public function getVariationProductQuery($clientCode)
     {
         $cursor = $this->getCursor($clientCode, 'variationProduct', 1);
-        $magic = 'productVariants(first:3,sortKey:ID) {';
-        if ($cursor != '') {
-            $magic = 'productVariants(first:3,sortKey:ID, after:"' . $cursor . '") {';
-        }
+        $magic  = 'productVariants(first:10,sortKey:ID) {';
+
+  //       if ($cursor != '') {
+  // $magic = "productVariants(first:10, sortKey:ID, after:\"$cursor\") {";
+  //       }
         $query = <<<GQL
             query {
                 $magic
@@ -219,14 +219,18 @@ trait ShopifyTrait
                     defaultCursor
                     inventoryItem {
                       id
+                      measurement {
+                                        weight {
+                                            value
+                                            unit
+                                        }
+                                    }
                     }
                     inventoryQuantity
                     availableForSale
                     compareAtPrice
                     createdAt
                     displayName
-                    weight
-                    weightUnit
                     sku
                     barcode
                     image {
@@ -297,10 +301,10 @@ trait ShopifyTrait
     public function getCustomerQuery($clientCode)
     {
         $cursor = $this->getCursor($clientCode, 'customer');
-        $magic = 'customers(first:3,sortKey:ID) {';
-        if ($cursor != '') {
-            $magic = 'customers(first:3,sortKey:ID, after:"' . $cursor . '") {';
-        }
+        $magic  = 'customers(first:3,sortKey:ID) {';
+        // if ($cursor != '') {
+        //     $magic = 'customers(first:3,sortKey:ID, after:"' . $cursor . '") {';
+        // }
         $query = <<<GQL
             query {
                 $magic
@@ -363,10 +367,9 @@ trait ShopifyTrait
     public function getOrdersQuery($clientCode, $isLive = 0, $cursorType = 'order', $limit = 3)
     {
 
-        $result = $this->getCursor($clientCode, $cursorType, $isLive);
-        $cursor = $result['cursor'] ?? '';
+        $result     = $this->getCursor($clientCode, $cursorType, $isLive);
+        $cursor     = $result['cursor'] ?? '';
         $cursorName = $result['cursorName'] ?? '';
-
 
         $after = '';
         if ($cursor) {
@@ -374,14 +377,14 @@ trait ShopifyTrait
                 $after = ', after: "' . $cursor . '"';
             } elseif ($cursorName === 'orderBYLMD') {
                 $cursor = "'" . $cursor . "'";
-                $after = ', query:"updated_at:>=' . $cursor . '", sortKey:UPDATED_AT';
+                $after  = ', query:"updated_at:>=' . $cursor . '", sortKey:UPDATED_AT';
             }
         } else {
             $after = ', sortKey:UPDATED_AT';
         }
 
         $magic = '';
-        if (!empty($cursor)) {
+        if (! empty($cursor)) {
             $magic = 'orders(first:' . $limit . '' . $after . ') {';
         } else {
             $magic = 'orders(first:' . $limit . '' . $after . ') {';
@@ -779,8 +782,8 @@ trait ShopifyTrait
                 edges {
                   node {
                     location {
-                      id 
-                      name 
+                      id
+                      name
                     }
                     lineItem {
                       id
@@ -999,12 +1002,12 @@ trait ShopifyTrait
 
     public function getRefundsForOrders()
     {
-        $orders = $this->getOrders();
+        $orders     = $this->getOrders();
         $allRefunds = [];
         foreach ($orders['orders'] as $order) {
             $orderId = $order['id'];
-            $result = $this->getRefundsByOrderId($orderId);
-            if (!empty($result['refunds'])) {
+            $result  = $this->getRefundsByOrderId($orderId);
+            if (! empty($result['refunds'])) {
                 $allRefunds[] = $result;
             }
         }
@@ -1065,7 +1068,7 @@ trait ShopifyTrait
 
     public function deleteShopifyVariant($productId, $variantIds)
     {
-      $query = '
+        $query = '
         mutation {
           productVariantsBulkDelete(productId: ' . $productId . ', variantsIds: ' . $variantIds . ') {
             product {
@@ -1078,7 +1081,7 @@ trait ShopifyTrait
             }
           }
         }';
-      return $query;
+        return $query;
     }
 
     public function getUnfulfilledOrdeQuery($orderStringId)

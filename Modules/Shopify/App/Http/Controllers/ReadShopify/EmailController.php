@@ -32,12 +32,12 @@ class EmailController extends Controller
     public function sendEmailV1($result)
     {
         dump('Sending Email');
-        $bcc_email = 'rabi@hitechvalley.com.au';
+        $bcc_email = 'palistha@hitechvalley.com.au';
         $to_email_list = [
-            "rajesh@hitechvalley.com.au",
-            "suraj@hitechvalley.com.au",
-            "zeus@retailcare.com.au",
-            "rabi@hitechvalley.com.au"
+            // "rajesh@hitechvalley.com.au",
+            // "suraj@hitechvalley.com.au",
+            // "zeus@retailcare.com.au",
+            "palistha@hitechvalley.com.au"
         ];
 
         //        Mail::to($to_email)->send(new SendEmail([
@@ -70,7 +70,7 @@ class EmailController extends Controller
             $dataArray = [];
             foreach ($result as $row) {
                 $dataArray[] = [
-                    'erply_id' => $row->stockId,
+                    'myob_id' => $row->stockId,
                     'handle' => $row->handle,
                     'title' => $row->title,
                     'shopify_product_id' => $row->shopifyProductId
