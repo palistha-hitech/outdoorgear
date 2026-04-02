@@ -22,10 +22,6 @@ class InventoryController extends Controller
         return $this->service->getMatrixProducts($req);
     }
     
-    public function handleAccessCode(Request $req)
-    {
-        // dd(" hello ");
-        return $this->service->handleAccessCode($req);
-    }
+ 
 
 }

@@ -85,6 +85,7 @@ Route::get('getVariantsProducts', [ShopifyProductsController::class, 'getVariant
 
 // Route::get('delete-laravel-logs', [OrderViewController::class, 'deleteLaravelLogs']);
 Route::post('webhook-product', [ShopifyProductsController::class, 'handleProductwebHooks']);
+Route::get('inventory-update', [ShopifyProductsController::class, 'handleInventoryUpdatewebHooks']);
 // Route::any('/webhooks-customers', function (Request $request) {
 //     // Log raw dataa
 //     Log::info('Raw Webhook Data:', ['payload' => $request->getContent()]);

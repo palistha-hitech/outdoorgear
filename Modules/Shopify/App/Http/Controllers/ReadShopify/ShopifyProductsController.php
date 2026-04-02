@@ -6,6 +6,8 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Modules\Myob\App\Http\Controllers\Myob\Services\MyobWriteService;
+use Modules\Myob\App\Models\SourceVariant;
 use Modules\Shopify\App\Models\ReadShopify\ShopifyImage;
 use Modules\Shopify\App\Models\ReadShopify\ShopifyProduct;
 use Modules\Shopify\App\Models\ReadShopify\ShopifyVariantsProduct;
@@ -20,9 +22,13 @@ class ShopifyProductsController extends Controller
 
     protected $clientCode;
 
-    public function __construct()
+    protected $myobWriteService;
+
+    public function __construct(MyobWriteService $myobWriteService)
     {
-        $this->clientCode = $this->getClientCode();
+        $this->live             = 1;
+        $this->clientCode       = 'default';
+        $this->myobWriteService = $myobWriteService;
     }
 
     public function getProducts(Request $request)
@@ -179,8 +185,16 @@ class ShopifyProductsController extends Controller
             try {
                 $lmd = '';
                 foreach ($res->data->productVariants->edges as $productEdge) {
-                    $productNode = $productEdge->node;
+                    $productNode      = $productEdge->node;
+                    $inventoryItemGid = $productNode->inventoryItem->id ?? null;
+                    $inventoryItemId  = $inventoryItemGid
+                        ? last(explode('/', $inventoryItemGid))
+                        : null;
 
+                    // dd($productNode->product->status);
+                    if (@$productNode->product->status == 'ACTIVE') {
+                        continue; // skip ACTIVE products
+                    }
                     $cursor = $productEdge->cursor;
 
                     Log::info('products: ' . json_encode($productNode));
@@ -214,6 +228,7 @@ class ShopifyProductsController extends Controller
                             'price'                      => $productNode->price,
                             'totalInventory'             => $productNode->inventoryQuantity,
                             'displayName'                => $productNode->displayName,
+                            'inventoryitemId'            => $inventoryItemId,
                             // 'weight'                     => $weight,
                             // 'weightUnit'                 => $weightUnit,
                             'sku'                        => $productNode->sku,
@@ -300,5 +315,118 @@ class ShopifyProductsController extends Controller
         }
         Log::info("Processed Shopify product and variants: " . json_encode($product->with('variants')->get(), JSON_PRETTY_PRINT));
         return response()->json(['status' => 'success', 'message' => 'Product and variants processed successfully']);
+    }
+
+    public function handleInventoryUpdatewebHooks(Request $request)
+    {
+        try {
+
+            // $data = $request->all();
+
+            $inventoryItemId = $data['inventory_item_id'] ?? '46416401203254';
+
+            $stock = $data['available'] ?? null;
+
+            $inventoryItemGid = "gid://shopify/InventoryItem/{$inventoryItemId}";
+
+            // Validate payload
+            // if (!$inventoryItemId || is_null($stock)) {
+            //     Log::error('Invalid webhook payload', $data);
+            //     return response()->json(['error' => 'Invalid payload'], 400);
+            // }
+            DB::beginTransaction();
+            $updatedShopifyVariantsProduct = ShopifyVariantsProduct::where('inventoryItemId', $inventoryItemId)
+                ->update([
+                    'totalInventory' => $stock,
+                    'updated_at'     => now(),
+                ]);
+
+            $updatedSourceVariant = SourceVariant::where('inventoryItemId', $inventoryItemGid)
+                ->update([
+                    'quantityOnHand'        => $stock,
+                    'updated_at'            => now(),
+                    'myobsohpendingprocess' => 1,
+                ]);
+            DB::commit();
+            if ($updatedShopifyVariantsProduct || $updatedSourceVariant) {
+
+                Log::info("Stock updated for inventoryItemId: {$inventoryItemId}, New SOH: {$stock}");
+
+                // Trigger MYOB SOH sync
+                $variantProduct = SourceVariant::where('inventoryItemId', $inventoryItemGid)->first();
+                $invoiceNumber  = $variantProduct->sku;
+
+                $this->syncSOHToMyob($invoiceNumber, $stock);
+
+            } else {
+                Log::warning("No matching record found for inventoryItemId: {$inventoryItemId}");
+            }
+
+            return response()->json(['status' => 'success']);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Webhook processing failed: ' . $e->getMessage());
+            return response()->json(['error' => 'Server error'], 500);
+        }
+    }
+    /**
+     * Sync SOH to MYOB after Shopify inventory update
+     */
+    private function syncSOHToMyob($invoiceNumber, $stock)
+    {
+
+        try {
+            // Get the source variant with MYOB data
+            $sourceVariant = SourceVariant::where('sku', $invoiceNumber)
+
+                ->first();
+
+            $myobQty       = $sourceVariant->quantityOnHand ?? 0;
+            $adjustmentQty = $stock - $myobQty;
+            $payload       = [
+                "Date"  => now()->format('Y-m-d\TH:i:s'),
+                "Memo"  => "Stock adjustment from Shopify sync",
+
+                "Lines" => [
+                    [
+                        "Item"     => [
+                            "UID" => $sourceVariant->variantId, // MYOB Item UID
+                        ],
+                        "Account"  => [
+                            "UID" => "cc424eb1-8183-4be8-8597-dad593f18c5e",
+                        ],
+                        "Quantity" => 20,
+                        "UnitCost" => 20,
+                        "Location" => [
+                            "UID" => '08aca640-d292-4f75-9665-4078b8481065',
+                        ],
+                    ],
+                ],
+            ];
+
+            // Call MYOB API to update SOH
+            $myobService = $this->myobWriteService;
+
+            // Get MYOB credentials from the product's client
+            $clientCode = $sourceVariant->sourceProduct->clientCode ?? 'default';
+
+            $result = $myobService->updateItemSOH($payload, $clientCode);
+
+            if ($result['success']) {
+                Log::info("MYOB SOH updated successfully for variant {$sourceVariant->id}, New SOH: {$stock}");
+
+                // Update variant to mark MYOB sync complete
+                $sourceVariant->update([
+                    'myobsohpendingprocess' => 0,
+                    'myobUpdated'           => now(),
+                ]);
+            } else {
+                Log::error("MYOB SOH update failed: " . $result['message']);
+            }
+
+        } catch (\Exception $e) {
+            Log::error("Error syncing SOH to MYOB: " . $e->getMessage());
+        }
     }
 }

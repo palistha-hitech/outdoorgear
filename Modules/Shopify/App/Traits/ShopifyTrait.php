@@ -88,10 +88,10 @@ trait ShopifyTrait
     {
         $cursor = $this->getCursor($clientCode, 'matrixProduct', 1);
         $magic  = 'products(first:3,sortKey:ID) {';
-        // if ($cursor != '') {
-        //     # $cursor = "updated_at:>='$cursor'";
-        //     $magic = 'products(first:5,sortKey:ID, after:"' . $cursor . '") {';
-        // }
+        if ($cursor != '') {
+            # $cursor = "updated_at:>='$cursor'";
+            $magic = 'products(first:5,sortKey:ID, after:"' . $cursor . '") {';
+        }
         $query = <<<GQL
             query {
                 $magic
@@ -139,12 +139,17 @@ trait ShopifyTrait
 
     public function getMatrixProductQueryByLastmodified($clientCode)
     {
-        $cursor = $this->getCursor($clientCode, 'matrixProductV2', 1);
-        $magic  = 'products(first:10,sortKey:UPDATED_AT,query:"status:draft") {';
-        // if ($cursor != '') {
-        //     $cursor = "updated_at:>='$cursor'";
-        //     $magic  = "products(first:10, query:\"$cursor\", sortKey:UPDATED_AT) {";
-        // }
+        $cursorData = $this->getCursor($clientCode, 'matrixProductV2', 1);
+
+        $magic = 'products(first:10, sortKey:UPDATED_AT, query:"status:draft",reverse:true) {';
+
+        if (! empty($cursorData['cursor'])) {
+
+            $cursor =  "status:draft AND updated_at:<='{$cursorData['cursor']}'";
+
+            $magic = "products(first:10, sortKey:UPDATED_AT, query:\"$cursor\",reverse:true) {";
+        }
+        // dd($magic, $cursor);
         $query = <<<GQL
             query {
                 $magic
@@ -192,12 +197,17 @@ trait ShopifyTrait
 
     public function getVariationProductQuery($clientCode)
     {
-        $cursor = $this->getCursor($clientCode, 'variationProduct', 1);
-        $magic  = 'productVariants(first:10,sortKey:ID) {';
+        $cursorData = $this->getCursor($clientCode, 'variationProduct', 1);
 
-  //       if ($cursor != '') {
-  // $magic = "productVariants(first:10, sortKey:ID, after:\"$cursor\") {";
-  //       }
+        // $magic = 'productVariants(first:100,sortKey:ID, query: "product_status:draft sku:WHL*") {';
+        $magic = 'productVariants(first:100, sortKey:ID, query:"product_status:draft AND sku:WHL*") {';
+        // if (! empty($cursorData['cursor'])) {
+
+        //       // $magic = 'productVariants(first:3,sortKey:ID, after:"' . $cursor . '") {';
+
+        //    $magic = "productVariants(first:100, sortKey:ID, after:\"{$cursorData['cursor']}\", query: \"product_status:draft\") {";
+        // }
+
         $query = <<<GQL
             query {
                 $magic
