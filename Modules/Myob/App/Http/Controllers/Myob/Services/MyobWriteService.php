@@ -329,4 +329,49 @@ dd($response);
             return ['success' => false, 'message' => $e->getMessage()];
         }
     }
+    
+    /**
+     * Sync individual MYOB product to local database
+     */
+    public function syncProductToLocal($myobProduct)
+    {
+        try {
+            // Check if product already exists in local database
+            $existingProduct = SourceProduct::where('code', $myobProduct->Code)->first();
+            
+            if ($existingProduct) {
+                // Update existing product
+                $existingProduct->update([
+                    'title' => $myobProduct->Name,
+                    'descriptionHtml' => $myobProduct->Description ?? '',
+                    'quantityOnHand' => $myobProduct->QuantityOnHand ?? 0,
+                    'myob_updated' => now(),
+                    'myob_last_sync' => now(),
+                ]);
+                
+                Log::info("Updated existing product: {$myobProduct->Code}");
+                return ['success' => true, 'message' => 'Product updated'];
+            } else {
+                // Create new product
+                $newProduct = SourceProduct::create([
+                    'code' => $myobProduct->Code,
+                    'title' => $myobProduct->Name,
+                    'descriptionHtml' => $myobProduct->Description ?? '',
+                    'quantityOnHand' => $myobProduct->QuantityOnHand ?? 0,
+                    'status' => 1,
+                    'outdoorGearStatus' => 1,
+                    'myob_updated' => 1,
+                    'myob_last_sync' => now(),
+                    'sourceUpdatedDate' => now(),
+                ]);
+                
+                Log::info("Created new product: {$myobProduct->Code}");
+                return ['success' => true, 'message' => 'Product created'];
+            }
+            
+        } catch (\Exception $e) {
+            Log::error("Error syncing MYOB product to local: " . $e->getMessage());
+            return ['success' => false, 'message' => $e->getMessage()];
+        }
+    }
 }

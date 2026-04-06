@@ -325,7 +325,7 @@ class ShopifyProductsController extends Controller
 
             $inventoryItemId = $data['inventory_item_id'] ?? '46416401203254';
 
-            $stock = $data['available'] ?? null;
+            $stock = $data['available'] ?? 90;
 
             $inventoryItemGid = "gid://shopify/InventoryItem/{$inventoryItemId}";
 
@@ -348,6 +348,7 @@ class ShopifyProductsController extends Controller
                     'myobsohpendingprocess' => 1,
                 ]);
             DB::commit();
+         
             if ($updatedShopifyVariantsProduct || $updatedSourceVariant) {
 
                 Log::info("Stock updated for inventoryItemId: {$inventoryItemId}, New SOH: {$stock}");

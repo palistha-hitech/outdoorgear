@@ -186,7 +186,7 @@ class SohController extends Controller
 
                             if (! empty($locations) && isset($locations[0]['uid'])) {
                                 $locationUid = $locations[0]['uid'];
-                                dd($locationUid);
+                                // dd($locationUid);
                                 echo "Location UID: " . $locationUid;
                             }
                             echo "<br><br>Variant SKU = " . $variant->sku . "<br>";

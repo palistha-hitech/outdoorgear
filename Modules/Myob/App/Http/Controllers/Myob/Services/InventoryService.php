@@ -130,6 +130,7 @@ class InventoryService extends Controller
 
   private function saveSourceVariant($item, $parentProduct)
 {
+    dump($item);
     $parts = explode('-', $item['Number']);
     $color = $parts[2] ?? null;
     $quantityOnHand = $item['QuantityOnHand'] ?? 0;
@@ -138,17 +139,17 @@ class InventoryService extends Controller
     $locations = [];
 
     // Check if MYOB actually returned LocationDetails for this specific UID
-    if (!empty($item['LocationDetails'])) {
-        foreach ($item['LocationDetails'] as $locDetail) {
-            // Only add if the location data belongs to this item context
-            $locations[] = [
-                'uid'        => $locDetail['Location']['UID'] ?? null,
-                'name'       => $locDetail['Location']['Name'] ?? null,
-                'identifier' => $locDetail['Location']['Identifier'] ?? null,
-                'quantity'   => $locDetail['QuantityOnHand'] ?? 0,
-            ];
-        }
-    }
+    // if (!empty($item['LocationDetails'])) {
+    //     foreach ($item['LocationDetails'] as $locDetail) {
+    //         // Only add if the location data belongs to this item context
+    //         $locations[] = [
+    //             'uid'        => $locDetail['Location']['UID'] ?? null,
+    //             'name'       => $locDetail['Location']['Name'] ?? null,
+    //             'identifier' => $locDetail['Location']['Identifier'] ?? null,
+    //             'quantity'   => $locDetail['QuantityOnHand'] ?? 0,
+    //         ];
+    //     }
+    // }
 
     $existing = SourceVariant::where('variantId', $item['UID'])->first();
     $isSohChanged = false;
@@ -174,7 +175,7 @@ class InventoryService extends Controller
             'sohPendingProcess'     => 1,
             'pricePendingProcess'   => 1,
             // 3. Ensure we cast to array or null so JSON encoding works correctly
-            'location'              => !empty($locations) ? $locations : null,
+            // 'location'              => !empty($locations) ? $locations : null,
             'status'                => $item['IsActive'] ? 'ACTIVE' : 'ARCHIVED',
         ]
     );
@@ -185,24 +186,5 @@ class InventoryService extends Controller
 
     return $variant;
 }
-public function handleAccessCode(Request $request)
-{
-    dd('test');
-    $code = $request->code;
 
-    $response = Http::asForm()->post('https://secure.myob.com/oauth2/v1/authorize', [
-        'client_id' => env('MYOB_CLIENT_ID'),
-        'client_secret' => env('MYOB_CLIENT_SECRET'),
-        'grant_type' => 'authorization_code',
-        'code' => $code,
-        'redirect_uri' => env('MYOB_REDIRECT_URI'),
-    ]);
-
-    $data = $response->json();
-
-    // Save tokens in DB
-    // access_token, refresh_token
-
-    return $data;
-}
 }
