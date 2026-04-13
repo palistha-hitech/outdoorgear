@@ -16,12 +16,12 @@ Route::middleware('auth')->group(function () {
     Route::get('/dashboard/sync-logs', [DashboardController::class, 'getSyncLogs']);
     Route::post('/dashboard/sync-myob-to-local', [DashboardController::class, 'syncMyobToLocal']);
     Route::post('/dashboard/sync-local-to-shopify', [DashboardController::class, 'syncLocalToShopify']);
+    Route::post('/dashboard/sync-shopify-to-local', [DashboardController::class, 'syncShopifyToLocal']);
+    Route::post('/dashboard/sync-local-to-myob', [DashboardController::class, 'syncLocalToMyob']);
 });
 
 // API routes
 Route::get('/get-matrix-products', [InventoryController::class, 'getMatrixProducts']);
 Route::post('/sync-to-myob', [InventoryController::class, 'syncToMyob']);
 
-Route::get('/', function () {
-    return redirect('/myob/login');
-});
+

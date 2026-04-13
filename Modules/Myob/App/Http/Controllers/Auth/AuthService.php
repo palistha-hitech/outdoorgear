@@ -27,7 +27,7 @@ class AuthService
         //     $token = $this->myob->client->myob_access_token;
         //     // info("Old Token Used".$token);
         // }
-        $fullUrl = 'http://localhost:8080/AccountRight/2b0003ff-142f-4e59-9f72-04f4a040c04f' . '/' . $url;
+        $fullUrl = 'http://localhost:8080/AccountRight/' . config('myob.company_id') . '/' . $url;
         if ($isDebug == 1) {
             echo $fullUrl;
             die;
@@ -71,7 +71,7 @@ class AuthService
      */
     public function sendPostRequest($url, $data)
     {
-        $fullUrl = 'http://localhost:8080/AccountRight/2b0003ff-142f-4e59-9f72-04f4a040c04f/' . $url;
+        $fullUrl = 'http://localhost:8080/AccountRight/' . config('myob.company_id') . '/' . $url;
 
         $curl = curl_init();
         curl_setopt_array($curl, [
@@ -113,7 +113,7 @@ class AuthService
      */
     public function sendPostRequestForInventoryAdjustment($url, $data)
     {
-        $fullUrl = 'http://localhost:8080/AccountRight/2b0003ff-142f-4e59-9f72-04f4a040c04f/Inventory/Adjustment';
+        $fullUrl = 'http://localhost:8080/AccountRight/' . config('myob.company_id') . '/Inventory/Adjustment';
         dump('fullUrl: ' . $fullUrl, 'data: ' . json_encode($data));
         $curl = curl_init();
         curl_setopt_array($curl, [

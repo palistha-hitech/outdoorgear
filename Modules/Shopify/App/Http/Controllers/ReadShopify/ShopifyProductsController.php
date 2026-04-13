@@ -323,7 +323,7 @@ class ShopifyProductsController extends Controller
 
             // $data = $request->all();
 
-            $inventoryItemId = $data['inventory_item_id'] ?? '46416401203254';
+            $inventoryItemId = $data['inventory_item_id'] ?? '46601696313398';
 
             $stock = $data['available'] ?? 90;
 
@@ -395,13 +395,14 @@ class ShopifyProductsController extends Controller
                             "UID" => $sourceVariant->variantId, // MYOB Item UID
                         ],
                         "Account"  => [
-                            "UID" => "cc424eb1-8183-4be8-8597-dad593f18c5e",
+                            "UID" => config('myob.account'),
                         ],
-                        "Quantity" => 20,
+                        "Quantity" => 50,
                         "UnitCost" => 20,
                         "Location" => [
-                            "UID" => '08aca640-d292-4f75-9665-4078b8481065',
+                            "UID" => config('myob.location'),
                         ],
+                        "LastModified" => now()->format('Y-m-d\TH:i:s'),
                     ],
                 ],
             ];

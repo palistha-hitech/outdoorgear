@@ -6,8 +6,8 @@ use Modules\Myob\App\Http\Controllers\Auth\AuthService;
 use Modules\Myob\App\Models\SourceProduct;
 use Modules\Myob\App\Models\SourceVariant;
 use Modules\Myob\App\Trait\ResponseTrait;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Http;
+use Modules\Shopify\App\Models\ShopifyCursor;
+
 class InventoryService extends Controller
 {
     use ResponseTrait;
@@ -21,8 +21,8 @@ class InventoryService extends Controller
     {
 
         info("Fetching wholesale items from MYOB...");
-        $number = $req->number ?? null;
-
+        $number             = $req->number ?? null;
+        $latestLastModified = null;
         if ($number) {
             $parts = explode('-', $number);
 
@@ -35,11 +35,19 @@ class InventoryService extends Controller
 
             $query = "Inventory/Item?\$filter={$filter}";
         } else {
-            $query = "Inventory/Item?\$filter=startswith(Number,'WHL')";
+            $lastSync = ShopifyCursor::where('cursorName', 'myob_lastmodified')->value('cursor');
+
+            //      $query = "Inventory/Item?\$filter=startswith(Number,'WHL') AND LastModified ge datetime'$lastSync'";
+            $sync = $lastSync;
+
+            $filter = "startswith(Number,'WHL') and LastModified ge datetime'$sync'";
+
+            $query = "Inventory/Item?\$filter=" . urlencode($filter);
+
         }
 
         $res = $this->api->sendGetRequest($query);
-// dd($res);
+
         $products = [];
         if (is_array($res) && isset($res['Items'])) {
             // Filter wholesale items (Number starts with WHL)
@@ -52,7 +60,9 @@ class InventoryService extends Controller
             $matrixProducts = [];
 
             foreach ($items as $item) {
-                $parts     = explode('-', $item['Number']);
+                // dd($item);
+                $parts = explode('-', $item['Number']);
+
                 $parentSKU = $parts[0] . '-' . $parts[1];
 
                 if (! isset($matrixProducts[$parentSKU])) {
@@ -63,6 +73,7 @@ class InventoryService extends Controller
                 }
 
                 $matrixProducts[$parentSKU]['variants'][] = $item;
+                // dump($matrixProducts[$parentSKU]);
             }
 
             $products = array_values($matrixProducts);
@@ -76,33 +87,55 @@ class InventoryService extends Controller
                 ];
             }
         }
+// dump($products);
 
         foreach ($products as $matrixProduct) {
 
             $parentProduct = null;
-
+            $currentDate   = $item['LastModified'];
             foreach ($matrixProduct['variants'] as $item) {
-
+// dd($item);
                 $parts = explode('-', $item['Number']);
-
-                //matrix product
+                if (! $latestLastModified || strtotime($currentDate) > strtotime($latestLastModified)) {
+                    $latestLastModified = $currentDate;
+                }
                 if (count($parts) == 2) {
 
                     $parentProduct = $this->saveSourceProduct($item);
-//  dd($parentProduct);
-                }
-                // product varient
-                if (count($parts) == 3 && $parentProduct) {
+                    $currentDate   = $item['LastModified'];
 
-                    $this->saveSourceVariant($item, $parentProduct);
+                    if (! $latestLastModified || strtotime($currentDate) > strtotime($latestLastModified)) {
+                        $latestLastModified = $currentDate;
+                    }
+
+                }
+
+                // product varient
+                if (count($parts) == 3) {
+                    $parentProduct = SourceProduct::where('handle', $parts[0] . '-' . $parts[1])->first();
+                    // $parentProductId=SourceProduct::where('handle',$parts[0] . '-' . $parts[1])->value('id');
+
+                    $variantProduct = $this->saveSourceVariant($item, $parentProduct);
+                    dump($variantProduct->sourceUpdatedDate);
+
                 }
             }
         }
-        // dd($parentProduct);
-        return response("Wholesale MYOB products saved to Shopify tables in draft status.");
+        //  FINAL CURSOR UPDATE (ONLY ONCE)
+        if ($latestLastModified) {
+            ShopifyCursor::updateOrCreate(
+                ['cursorName' => 'myob_lastmodified'],
+                ['cursor' => $latestLastModified]
+            );
+
+            dump('Final cursor updated: ' . $latestLastModified);
+        }
+
+        return response("Wholesale MYOB products saved successfully.");
     }
     private function saveSourceProduct($item)
     {
+        dump('sourceproduct' . $item['Number']);
         $product = SourceProduct::updateOrCreate(
             ['stockId' => $item['UID']],
             [
@@ -128,63 +161,52 @@ class InventoryService extends Controller
         return $product;
     }
 
-  private function saveSourceVariant($item, $parentProduct)
-{
-    dump($item);
-    $parts = explode('-', $item['Number']);
-    $color = $parts[2] ?? null;
-    $quantityOnHand = $item['QuantityOnHand'] ?? 0;
+    private function saveSourceVariant($item, $parentProduct)
+    {
+        dump($item);
+        $parts = explode('-', $item['Number']);
+        // dd($parts);
+        $color          = $parts[2] ?? null;
+        $quantityOnHand = $item['QuantityOnHand'] ?? 0;
 
-    // 1. Explicitly clear and Scope locations to THIS specific item UID
-    $locations = [];
+        // 1. Explicitly clear and Scope locations to THIS specific item UID
+        $locations = [];
 
-    // Check if MYOB actually returned LocationDetails for this specific UID
-    // if (!empty($item['LocationDetails'])) {
-    //     foreach ($item['LocationDetails'] as $locDetail) {
-    //         // Only add if the location data belongs to this item context
-    //         $locations[] = [
-    //             'uid'        => $locDetail['Location']['UID'] ?? null,
-    //             'name'       => $locDetail['Location']['Name'] ?? null,
-    //             'identifier' => $locDetail['Location']['Identifier'] ?? null,
-    //             'quantity'   => $locDetail['QuantityOnHand'] ?? 0,
-    //         ];
-    //     }
-    // }
+        $existing     = SourceVariant::where('variantId', $item['UID'])->first();
+        $isSohChanged = false;
 
-    $existing = SourceVariant::where('variantId', $item['UID'])->first();
-    $isSohChanged = false;
+        if (! $existing || $existing->quantityOnHand != $quantityOnHand) {
+            $isSohChanged = true;
+        }
 
-    if (!$existing || $existing->quantityOnHand != $quantityOnHand) {
-        $isSohChanged = true;
+        // 2. Update ONLY the record matching this specific variantId (UID)
+        $variant = SourceVariant::updateOrCreate(
+            ['variantId' => $item['UID']],
+            [
+                'product_id'            => $parentProduct->id,
+                'sku'                   => $item['Number'],
+                'price'                 => $item['BuyingDetails']['StandardCost'] ?? 0,
+                'priceWithTax'          => $item['BaseSellingPrice'] ?? 0,
+                'color'                 => $color,
+                'size'                  => null,
+                'weight'                => 0,
+                'weightUnit'            => 'KILOGRAMS',
+                'quantityOnHand'        => $quantityOnHand,
+                'shopifyPendingProcess' => 1,
+                'sohPendingProcess'     => 1,
+                'pricePendingProcess'   => 1,
+                'sourceUpdatedDate'     => $item['LastModified'],
+                // 3. Ensure we cast to array or null so JSON encoding works correctly
+                // 'location'              => !empty($locations) ? $locations : null,
+                'status'                => $item['IsActive'] ? 'ACTIVE' : 'ARCHIVED',
+            ]
+        );
+// dd($variant);
+        if ($isSohChanged) {
+            $parentProduct->update(['outdoorGearSohStatus' => 1]);
+        }
+
+        return $variant;
     }
-
-    // 2. Update ONLY the record matching this specific variantId (UID)
-    $variant = SourceVariant::updateOrCreate(
-        ['variantId' => $item['UID']], 
-        [
-            'product_id'            => $parentProduct->id,
-            'sku'                   => $item['Number'],
-            'price'                 => $item['BuyingDetails']['StandardCost'] ?? 0,
-            'priceWithTax'          => $item['BaseSellingPrice'] ?? 0,
-            'color'                 => $color,
-            'size'                  => null,
-            'weight'                => 0,
-            'weightUnit'            => 'KILOGRAMS',
-            'quantityOnHand'        => $quantityOnHand,
-            'shopifyPendingProcess' => 1,
-            'sohPendingProcess'     => 1,
-            'pricePendingProcess'   => 1,
-            // 3. Ensure we cast to array or null so JSON encoding works correctly
-            // 'location'              => !empty($locations) ? $locations : null,
-            'status'                => $item['IsActive'] ? 'ACTIVE' : 'ARCHIVED',
-        ]
-    );
-
-    if ($isSohChanged) {
-        $parentProduct->update(['outdoorGearSohStatus' => 1]);
-    }
-
-    return $variant;
-}
 
 }
