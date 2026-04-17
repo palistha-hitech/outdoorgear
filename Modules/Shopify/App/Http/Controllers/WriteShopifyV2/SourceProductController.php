@@ -73,7 +73,7 @@ class SourceProductController extends Controller
                 if ($debug == 2) {
                     dd($mutations);
                 }
-
+dd('test');
                 $request = new ShopifyRequest();
                 $response = $request->sendRequest('createOrUpdateProductByID', $mutations);
 

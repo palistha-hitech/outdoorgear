@@ -63,7 +63,7 @@ class SourceProductController extends Controller
             foreach ($products as $product) {
                 $this->productService->updateProduct($product->id, [
                     'lastPushedDate' => date('Y-m-d H:i:s'),
-                ]);
+                ]);             
                 echo "Product Title : " . $product->title . "<br>";
                 echo "Product Handle : " . $product->handle . "<br>";
 
@@ -76,7 +76,7 @@ class SourceProductController extends Controller
                 // }
 // dd($product);
                 $mutations = $this->createOrUpdateProductMutation($product);
-//   dd($mutations);
+ 
                 if ($mutations == null) {
                     $this->productService->updateProduct($product->id, [
                         'shopifyPendingProcess' => 3, // Errors

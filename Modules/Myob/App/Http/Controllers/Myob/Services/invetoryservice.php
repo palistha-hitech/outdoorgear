@@ -5,7 +5,7 @@ use App\Http\Controllers\Auth\AuthService;
 use App\Http\Controllers\Controller;
 use Modules\Myob\App\Models\SourceProduct;
 use Modules\Myob\App\Models\SourceVariant;
-use Modules\Myob\App\Trait\ResponseTrait;
+use Modules\Myob\App\Traits\ResponseTrait;
 use Modules\Shopify\App\Models\ShopifyCursor;
 
 class InventoryService extends Controller
@@ -36,15 +36,44 @@ class InventoryService extends Controller
             $lastSync = ShopifyCursor::where('cursorName', 'myob_lastmodified')->value('cursor');
 
             //      $query = "Inventory/Item?\$filter=startswith(Number,'WHL') AND LastModified ge datetime'$lastSync'";
-            $sync = $lastSync;
+            $latestLastModified = $lastSync;
 
-            $filter = "startswith(Number,'WHL') and LastModified ge datetime'$sync'";
+            $filter = "startswith(Number,'WHL') and LastModified ge datetime'$latestLastModified'";
 
             $query = "Inventory/Item?\$filter=" . urlencode($filter);
 
         }
 
         $res = $this->api->sendGetRequest($query);
+
+        $items = $res['Items'] ?? [];
+
+        usort($items, function ($a, $b) {
+
+            // extract parent code (WHL-1002 from WHL-1002-red)
+            $aBase = implode('-', array_slice(explode('-', $a['Number']), 0, 2));
+            $bBase = implode('-', array_slice(explode('-', $b['Number']), 0, 2));
+
+            // 1. group by parent
+            if ($aBase !== $bBase) {
+                return strcmp($aBase, $bBase);
+            }
+
+            // 2. parent comes first
+            if ($a['Number'] === $aBase) {
+                return -1;
+            }
+
+            if ($b['Number'] === $bBase) {
+                return 1;
+            }
+
+            // 3. alphabetical order for variants
+            return strcmp($a['Number'], $b['Number']);
+        });
+
+        $res['Items'] = $items;
+
         // if ($req->id) {
         //     $res = $this->api->sendGetRequest("Inventory/Item/" . $req->id);
         // }
@@ -61,7 +90,7 @@ class InventoryService extends Controller
             $matrixProducts = [];
 
             foreach ($items as $item) {
-                // dd($item);
+
                 $parts = explode('-', $item['Number']);
 
                 $parentSKU = $parts[0] . '-' . $parts[1];
@@ -88,10 +117,9 @@ class InventoryService extends Controller
                 ];
             }
         }
-// dump($products);
-
+dd($products);
         foreach ($products as $matrixProduct) {
-dump($matrixProduct);
+
             $parentProduct = null;
             $currentDate   = $item['LastModified'];
             foreach ($matrixProduct['variants'] as $item) {
@@ -99,6 +127,10 @@ dump($matrixProduct);
                 $parts = explode('-', $item['Number']);
                 if (! $latestLastModified || strtotime($currentDate) > strtotime($latestLastModified)) {
                     $latestLastModified = $currentDate;
+                }
+                dd($item['LastModified'], $latestLastModified);
+                if($item['LastModified'] <= $latestLastModified) {
+                    continue;
                 }
                 if (count($parts) == 2) {
 

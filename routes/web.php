@@ -1,7 +1,8 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
-
+use App\Http\Controllers\Auth\AuthController;
+use App\Http\Controllers\Auth\CompanyController;
 /*
 |--------------------------------------------------------------------------
 | Web Routes
@@ -22,3 +23,9 @@ Route::get('/', function () {
 if (file_exists(base_path('Modules/myob/routes/web.php'))) {
     require base_path('Modules/myob/routes/web.php');
 }
+Route::get("/getAccessCode-1", [AuthController::class,'getAccessCode']); 
+Route::get("/get-access-code", [AuthController::class,'getAccessCode']);
+Route::get("/handleAccessCode", [AuthController::class,'handleAccessCode']);
+Route::get("/authorize", [AuthController::class,'getAccessToken']);
+Route::get("/refreshToken", [AuthController::class,'refreshToken']);
+Route::get("/listCompanyFiles", [CompanyController::class,'listCompanyFiles']);

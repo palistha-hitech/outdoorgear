@@ -8,7 +8,8 @@ use Modules\Myob\App\Http\Controllers\DashboardController;
 Route::get('/login', [DashboardController::class, 'showLoginForm'])->name('login');
 Route::post('/login', [DashboardController::class, 'login']);
 Route::post('/logout', [DashboardController::class, 'logout'])->name('logout');
-
+//Invetory
+Route::get("/getInventoryItems", [InventoryController::class,'getInventoryItems']);
 // Protected dashboard routes
 Route::middleware('auth')->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');

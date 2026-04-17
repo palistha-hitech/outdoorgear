@@ -22,6 +22,9 @@ class InventoryController extends Controller
         return $this->service->getMatrixProducts($req);
     }
     
- 
+    public function getInventoryItems(Request $req){
+
+        return $this->service->getItems($req);
+    }
 
 }
